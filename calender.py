@@ -70,7 +70,7 @@ async def daily_birthday_check():
 
 @bot.command(name="생일확인")
 async def get_next_schedule(ctx):
-    today = datetime.now()
+    today = datetime.now().date()
     today_md = today.strftime("%m-%d")
 
     cursor.execute("SELECT date, writer, author_id FROM schedule WHERE title = 'Birth'")
