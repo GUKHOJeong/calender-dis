@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS schedule (
 )
 conn.commit()
 
-TARGET_CHANNEL_ID = 1380858273506529361
+TARGET_CHANNEL_ID = 1380961745090379859
 
 
 @bot.event
@@ -121,6 +121,17 @@ async def get_user_schedule(ctx):
 async def add_birth(ctx, date: str, writer: str):
     date_obj = datetime.strptime(date, "%Y-%m-%d").date()
     author_id = str(ctx.author.id)
+
+    cursor.execute(
+        "SELECT * FROM schedule WHERE title = 'Birth' and author_id = %s", (author_id,)
+    )
+    row = cursor.fetchone()
+    if row:
+        writer = row[3]
+        await ctx.send(
+            f"{writer}님은 이미 등록 되어 있습니다. {writer}님 의 생일은 `{row[2]}`입니다. 🎂\n"
+        )
+        return
     cursor.execute(
         "INSERT INTO schedule (date, writer, author_id) VALUES (%s, %s, %s)",
         (date_obj, writer, author_id),
@@ -135,6 +146,18 @@ async def add_birth(ctx, date: str, writer: str):
 async def add_schedule(ctx, title: str, date: str, writer: str):
     date_obj = datetime.strptime(date, "%Y-%m-%d").date()
     author_id = str(ctx.author.id)
+
+    cursor.execute(
+        "SELECT * FROM schedule WHERE title = %s and date = %s  and author_id = %s",
+        (title, date_obj, author_id),
+    )
+    row = cursor.fetchone()
+    if row:
+        writer = row[3]
+        title = row[1]
+        date_obj = row[2]
+        await ctx.send(f"{writer}님의 {date_obj} {title} 일정은 이미 등록되었습니다. ")
+        return
     cursor.execute(
         "INSERT INTO schedule (title, date, writer, author_id) VALUES (%s, %s, %s, %s)",
         (title, date_obj, writer, author_id),
