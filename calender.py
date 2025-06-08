@@ -78,15 +78,18 @@ async def get_next_schedule(ctx):
     upcoming_birthdays = []
     for date_obj, writer, author_id in rows:
         birthday_this_year = date_obj.replace(year=today.year)
-        if birthday_this_year.strftime("%m-%d") >= today_md:
-            upcoming_birthdays.append((birthday_this_year, writer, author_id))
+        if birthday_this_year < today:
+            birthday_next = birthday_this_year.replace(year=today.year + 1)
+        else:
+            birthday_next = birthday_this_year
 
+        days_left = (birthday_next - today).days
+        upcoming_birthdays.append((birthday_next, writer, author_id, days_left))
     if upcoming_birthdays:
         upcoming_birthdays.sort(key=lambda x: x[0])
-        message = "🎂 **다가오는 생일자 목록 (최대 5명):**\n"
+        message = "🎂 **다가오는 생일자 목록 (최대 10명):**\n"
 
-        for birthday, writer, author_id in upcoming_birthdays[:5]:
-            days_left = (birthday - today).days
+        for birthday, writer, author_id, days_left in upcoming_birthdays[:10]:
             mention = f"<@{author_id}>"
             message += f"\n🧑‍🎂 **{writer}** — `{birthday.strftime('%Y-%m-%d')}` (⏳ {days_left}일 남음, 등록자: {mention})"
 
@@ -99,20 +102,26 @@ async def get_next_schedule(ctx):
 async def get_user_schedule(ctx):
     now = datetime.now().date()
     author_id = str(ctx.author.id)
+    cursor.execute(
+        "DELETE FROM schedule WHERE date < %s AND author_id = %s", (now, author_id)
+    )
+    conn.commit()
 
     cursor.execute(
-        "SELECT title, date, writer FROM schedule WHERE date >= %s AND author_id = %s ORDER BY date LIMIT 1",
+        "SELECT title, date, writer FROM schedule WHERE date >= %s AND author_id = %s ORDER BY date LIMIT 5",
         (now, author_id),
     )
-    result = cursor.fetchone()
+    rows = cursor.fetchall()
 
-    if result:
-        title, date_obj, writer = result
-        days_left = (date_obj - now).days
-        await ctx.send(
-            f"👤 {ctx.author.mention}님의 다음 일정:\n"
-            f"📅 **{title}**\n🕒 `{date_obj.strftime('%Y-%m-%d')}`\n⏳ **{days_left}일** 남았습니다."
-        )
+    if rows:
+        message = f"📋 {ctx.author.mention}님의 예정된 일정 (최대 5개):\n"
+        for title, date_obj, writer in rows:
+            days_left = (date_obj - now).days
+            d_day = "오늘" if days_left == 0 else f"{days_left}일 남음"
+            message += (
+                f"\n🔸 **{title}** — `{date_obj.strftime('%Y-%m-%d')}` (⏳ {d_day})"
+            )
+        await ctx.send(message)
     else:
         await ctx.send(f"{ctx.author.mention}님은 예정된 일정이 없습니다.")
 
